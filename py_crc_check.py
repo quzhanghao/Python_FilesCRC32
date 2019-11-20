@@ -8,9 +8,9 @@ from time import strftime, localtime
 from zlib import crc32
 
 
-MAX_FILE_COUNT = 20
-MAX_FILE_SIZE = 0xC800000
-EXCLUED_FILES = ('\\lib\\', 'tcl86t.dll', 'tk86t.dll', 'python37.dll')
+MAX_FILE_COUNT = 20  # 最多计算文件数量
+MAX_FILE_SIZE = 0x3200000  # 最大文件大小(字节)
+EXCLUDE_FILES = ('\\lib\\', 'tcl86t.dll', 'tk86t.dll', 'python37.dll')  # 排除项
 
 
 class Application(Tk):
@@ -34,7 +34,7 @@ class Application(Tk):
         hook_dropfiles(self.btnOfd2, func=self.btnOfd2_DraggedFiles)
         self.btnOfd2.grid(row=0, column=1, pady=10)
 
-        # label1 label2
+        # label1 label2 显示当前打开的文件夹路径
         self.txtLabel1 = StringVar()
         self.label1 = ttk.Label(self, textvariable=self.txtLabel1)
         self.label1.grid(row=1, column=0, sticky=W, padx=10)
@@ -57,7 +57,7 @@ class Application(Tk):
         self.treeview2.column('CRC32', width=70, anchor='center')
         self.treeview2.grid(row=2, column=1, padx=10, pady=12)
 
-        # 绑定函数，使表头可排序
+        # 表头排序
         for col in columns:
             self.treeview1.heading(col, text=col, command=lambda _col=col: self.treeview_sort_column(
                 self.treeview1, _col, False))
@@ -80,17 +80,18 @@ class Application(Tk):
             self.crcHandle(1 if arg == 1 else 2, locate)
 
     def crcHandle(self, index, locate):
-        fileList = []
+        fileList = set()
         if os.path.isfile(locate):
-            fileList.append(locate)
+            fileList.add(locate)
         else:
             for root, dirs, files in os.walk(locate):
                 if len(fileList) > MAX_FILE_COUNT:
                     break
                 for f in files:
-                    fileList.append(os.path.join(root, f))
+                    fileList.add(os.path.join(root, f))
 
         count = 0
+        # 清除 treeview 当前数据
         if index == 1:
             x = self.treeview1.get_children()
             for item in x:
@@ -107,7 +108,8 @@ class Application(Tk):
                 break
             if os.path.getsize(file) > MAX_FILE_SIZE:
                 continue
-            if EXCLUED_FILES[0] in file or EXCLUED_FILES[1] in file or EXCLUED_FILES[2] in file or EXCLUED_FILES[3] in file:
+            # 排除 EXCLUDE_FILES 中的文件或文件夹
+            if len([i for i in EXCLUDE_FILES if i in file]) > 0:
                 continue
 
             try:
@@ -117,11 +119,9 @@ class Application(Tk):
 
                     timeStr = strftime('%Y-%m-%d %H:%M:%S', localtime(os.path.getatime(file)))
                     if index == 1:
-                        self.treeview1.insert(
-                            '', 'end', values=[file.replace(locate, '.'), timeStr, crc])
+                        self.treeview1.insert('', 'end', values=[file.replace(locate, '.'), timeStr, crc])
                     else:
-                        self.treeview2.insert(
-                            '', 'end', values=[file.replace(locate, '.'), timeStr, crc])
+                        self.treeview2.insert('', 'end', values=[file.replace(locate, '.'), timeStr, crc])
 
             except Exception as e:
                 print(str(e))
